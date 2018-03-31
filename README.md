@@ -15,4 +15,8 @@ It nowadays contains more than 30 functions designed to construct composite lead
 - visualisations,
 - and more.
 
-It will soon be available via pip.
+## Installation
+
+CIF is available via pip and tested on Python 3.5.
+
+Run the following command from a terminal window: `pip install cif`
