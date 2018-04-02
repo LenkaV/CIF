@@ -16,6 +16,7 @@ from dateutil.relativedelta import relativedelta
 #from subprocess import call
 #from pathlib import Path
 #import numbers
+import warnings
 
 
 # OECD API FUNCTIONS
@@ -553,8 +554,12 @@ def getSAForecasts(series, forecastSteps = 6, showPlots = True, savePlots = None
         
         # Get best model info
         
-        series_ord = smX13.x13_arima_select_order(series) 
-        print('\nBEST MODEL BY TRAMO:', series_ord.order, series_ord.sorder)
+        with warnings.catch_warnings():
+            
+            warnings.simplefilter("ignore")
+            
+            series_ord = smX13.x13_arima_select_order(series) 
+            print('\nBEST MODEL BY TRAMO:', series_ord.order, series_ord.sorder)
         
         # Get seasonally adjusted data
         
@@ -563,7 +568,11 @@ def getSAForecasts(series, forecastSteps = 6, showPlots = True, savePlots = None
         diff = min(series_ord.order[1], 2) # order of differencing, no larger than 2
         diffS = min(series_ord.sorder[1], 1) # order of seasonal differencing, no larger than 1
         
-        series_X13 = smX13.x13_arima_analysis(endog = series, maxorder = (maxOrder, maxSOrder), maxdiff = None, diff = (diff, diffS), outlier = True, forecast_years = 0)
+        with warnings.catch_warnings():
+            
+            warnings.simplefilter("ignore")
+            
+            series_X13 = smX13.x13_arima_analysis(endog = series, maxorder = (maxOrder, maxSOrder), maxdiff = None, diff = (diff, diffS), outlier = True, forecast_years = 0)
         
         series_SA = pd.DataFrame({series.columns[0]: series_X13.seasadj})        
         
@@ -602,7 +611,7 @@ def getSAForecasts(series, forecastSteps = 6, showPlots = True, savePlots = None
             
             saveLogs.write('\nBEST MODEL BY TRAMO: ' + str(series_ord.order) + str(series_ord.sorder))
             
-    #        warnings = re.split('WARNING: ', str(series_X13.stdout))
+    #        warnings = re.split('WARNING: ', str(series_X13.stdout)) ## attention, we now use warnings package!
     #        
     #        if len(warnings) > 1:
     #        
@@ -935,7 +944,7 @@ def getLocalExtremes(df, showPlots = True, savePlots = None, nameSuffix = ''):
         dataframe with local extremes marked as -1 (troughs) or 1 (peaks) or 0 otherwise
         
     """
-
+    
     dataShifted = pd.DataFrame(index = df.index)
     
     for i in range(-5, 5):
@@ -953,12 +962,12 @@ def getLocalExtremes(df, showPlots = True, savePlots = None, nameSuffix = ''):
     
     if showPlots or savePlots:
         
-        plotIndicator(df, dataInd, savePlots = savePlots, nameSuffix = nameSuffix)
+        plotIndicator(df, dataInd, showPlots = showPlots, savePlots = savePlots, nameSuffix = nameSuffix)
     
     return(dataInd)
 
 
-def checkAlterations(df, indicator, keepFirst = False, showPlots = True, savePlots = None, nameSuffix = '', saveLogs = None):
+def checkAlterations(df, indicator, keepFirst = False, printDetails = True, showPlots = True, savePlots = None, nameSuffix = '', saveLogs = None):
     
     """
     Check the alterations of the turning points, otherwise delete repeating turning
@@ -974,6 +983,8 @@ def checkAlterations(df, indicator, keepFirst = False, showPlots = True, savePlo
     keepFirst: bool
         the first peak or trough is kept if True, the highest peak or the lowest
         trough is kept if False (deault)
+    printDetails: bool
+        print details about deleted extremes?
     showPlots: bool
         show plots?
     savePlots: str or None
@@ -993,7 +1004,9 @@ def checkAlterations(df, indicator, keepFirst = False, showPlots = True, savePlo
     dataInd = indicator.copy()
     checkAlt = dataInd.cumsum()
     
-    print('\nChecking extremes at %s for alterations:' % (dataInd.columns[0]))
+    if printDetails:
+        
+        print('\nChecking extremes at %s for alterations:' % (dataInd.columns[0]))
     
     if saveLogs:
         
@@ -1014,7 +1027,9 @@ def checkAlterations(df, indicator, keepFirst = False, showPlots = True, savePlo
             
                 if (not(keepFirst) and ((thisExt * df.loc[thisDate])[0] > (lastExt * df.loc[lastDate])[0])): # keep the higher one (or the earlier one when they equal)
                     
-                    print('Deleting extreme (%d) at %s' % (lastExt, str(lastDate)))
+                    if printDetails:
+                        
+                        print('Deleting extreme (%d) at %s' % (lastExt, str(lastDate)))
                     
                     if saveLogs:
                         
@@ -1026,7 +1041,9 @@ def checkAlterations(df, indicator, keepFirst = False, showPlots = True, savePlo
                     
                 else:
                     
-                    print('Deleting extreme (%d) at %s' % (thisExt, str(thisDate)))
+                    if printDetails:
+                    
+                        print('Deleting extreme (%d) at %s' % (thisExt, str(thisDate)))
                     
                     if saveLogs:
                         
@@ -1049,7 +1066,7 @@ def checkAlterations(df, indicator, keepFirst = False, showPlots = True, savePlo
     
     if showPlots or savePlots:
         
-        plotIndicator(df, dataInd, savePlots = savePlots, nameSuffix = nameSuffix)
+        plotIndicator(df, dataInd, showPlots = showPlots, savePlots = savePlots, nameSuffix = nameSuffix)
     
     if saveLogs:
         
@@ -1058,7 +1075,7 @@ def checkAlterations(df, indicator, keepFirst = False, showPlots = True, savePlo
     return(dataInd)
 
 
-def checkNeighbourhood(df, indicator, showPlots = True, savePlots = None, nameSuffix = '', saveLogs = None):
+def checkNeighbourhood(df, indicator, printDetails = True, showPlots = True, savePlots = None, nameSuffix = '', saveLogs = None):
     
     """
     Check the consistency of values between two turning points,
@@ -1071,6 +1088,8 @@ def checkNeighbourhood(df, indicator, showPlots = True, savePlots = None, nameSu
         pandas DataFrame (with one column), vector of values
     indicator: pandas.DataFrame
         pandas DataFrame (with one column), vector of local extremes
+    printDetails: bool
+        print details about deleted extremes?
     showPlots: bool
         show plots?
     savePlots: str or None
@@ -1089,7 +1108,9 @@ def checkNeighbourhood(df, indicator, showPlots = True, savePlots = None, nameSu
     
     dataInd = indicator.copy()
     
-    print('\nChecking extremes at %s for higher/lower neighbours:' % (dataInd.columns[0]))
+    if printDetails:
+        
+        print('\nChecking extremes at %s for higher/lower neighbours:' % (dataInd.columns[0]))
     
     if saveLogs:
         
@@ -1121,7 +1142,9 @@ def checkNeighbourhood(df, indicator, showPlots = True, savePlots = None, nameSu
         
         if ((thisExt * df.loc[lastDate:nextDate]).max()[0] > (thisExt * df.loc[thisDate])[0]): # is there higher/lower point then this max/min?
             
-            print('Deleting extreme (%d) at %s' % (thisExt, str(thisDate)))
+            if printDetails:
+                
+                print('Deleting extreme (%d) at %s' % (thisExt, str(thisDate)))
             
             if saveLogs:
                 
@@ -1137,7 +1160,7 @@ def checkNeighbourhood(df, indicator, showPlots = True, savePlots = None, nameSu
     
     if showPlots or savePlots:
         
-        plotIndicator(df, dataInd, savePlots = savePlots, nameSuffix = nameSuffix)
+        plotIndicator(df, dataInd, showPlots = showPlots, savePlots = savePlots, nameSuffix = nameSuffix)
     
     if saveLogs:
         
@@ -1146,7 +1169,7 @@ def checkNeighbourhood(df, indicator, showPlots = True, savePlots = None, nameSu
     return(dataInd)
 
 
-def checkCycleLength(df, indicator, cycleLength = 15, showPlots = True, savePlots = None, nameSuffix = '', saveLogs = None):
+def checkCycleLength(df, indicator, cycleLength = 15, printDetails = True, showPlots = True, savePlots = None, nameSuffix = '', saveLogs = None):
     
     """
     Check the minimal length of cycle, otherwise delete one of the turning
@@ -1160,6 +1183,8 @@ def checkCycleLength(df, indicator, cycleLength = 15, showPlots = True, savePlot
         pandas DataFrame (with one column), vector of local extremes
     cycleLength: int
         minimal lenght of the cycle (in months)
+    printDetails: bool
+        print details about deleted extremes?
     showPlots: bool
         show plots?
     savePlots: str or None
@@ -1178,7 +1203,9 @@ def checkCycleLength(df, indicator, cycleLength = 15, showPlots = True, savePlot
     
     dataInd = indicator.copy()
     
-    print('\nChecking extremes at %s for cycle length:' % (dataInd.columns[0]))
+    if printDetails:
+        
+        print('\nChecking extremes at %s for cycle length:' % (dataInd.columns[0]))
     
     if saveLogs:
         
@@ -1202,7 +1229,9 @@ def checkCycleLength(df, indicator, cycleLength = 15, showPlots = True, savePlot
                     
                     if ((thisExt * df.loc[thisDate])[0] > (lastExt * df.loc[lastDate])[0]): # keep the higher one (or the earlier one when they equal)
                         
-                        print('Deleting extreme (%d) at %s' % (lastExt, str(lastDate)))
+                        if printDetails:
+                            
+                            print('Deleting extreme (%d) at %s' % (lastExt, str(lastDate)))
                         
                         if saveLogs:
                             
@@ -1213,7 +1242,9 @@ def checkCycleLength(df, indicator, cycleLength = 15, showPlots = True, savePlot
                         
                     else:
                         
-                        print('Deleting extreme (%d) at %s' % (thisExt, str(thisDate)))
+                        if printDetails:
+                        
+                            print('Deleting extreme (%d) at %s' % (thisExt, str(thisDate)))
                         
                         if saveLogs:
                             
@@ -1283,7 +1314,7 @@ def checkCycleLength(df, indicator, cycleLength = 15, showPlots = True, savePlot
     
     if showPlots or savePlots:
         
-        plotIndicator(df, dataInd, savePlots = savePlots, nameSuffix = nameSuffix)
+        plotIndicator(df, dataInd, showPlots = showPlots, savePlots = savePlots, nameSuffix = nameSuffix)
         
     if saveLogs:
         
@@ -1292,7 +1323,7 @@ def checkCycleLength(df, indicator, cycleLength = 15, showPlots = True, savePlot
     return(dataInd)
 
 
-def checkPhaseLength(df, indicator, phaseLength = 5, meanVal = 100, showPlots = True, savePlots = None, nameSuffix = '', saveLogs = None):
+def checkPhaseLength(df, indicator, phaseLength = 5, meanVal = 100, printDetails = True, showPlots = True, savePlots = None, nameSuffix = '', saveLogs = None):
     
     """
     Check the minimal length of phase, otherwise delete one of the turning
@@ -1308,6 +1339,8 @@ def checkPhaseLength(df, indicator, phaseLength = 5, meanVal = 100, showPlots = 
         minimal lenght of the phase (in months)
     meanVal: float
         mean value of the column, for series normalised by normaliseSeries() equals 100 (default)
+    printDetails: bool
+        print details about deleted extremes?
     showPlots: bool
         show plots?
     savePlots: str or None
@@ -1326,7 +1359,9 @@ def checkPhaseLength(df, indicator, phaseLength = 5, meanVal = 100, showPlots = 
         
     dataInd = indicator.copy()
     
-    print('\nChecking extremes at %s for phase length:' % (dataInd.columns[0]))
+    if printDetails:
+        
+        print('\nChecking extremes at %s for phase length:' % (dataInd.columns[0]))
     
     if saveLogs:
         
@@ -1353,7 +1388,9 @@ def checkPhaseLength(df, indicator, phaseLength = 5, meanVal = 100, showPlots = 
                 
                 if (thisVal > lastVal): # keep the one, which is deviated more (or the earlier one when they equal)
                     
-                    print('Deleting extreme (%d) at %s' % (lastExt, str(lastDate)))
+                    if printDetails:
+                        
+                        print('Deleting extreme (%d) at %s' % (lastExt, str(lastDate)))
                     
                     if saveLogs:
                         
@@ -1364,7 +1401,9 @@ def checkPhaseLength(df, indicator, phaseLength = 5, meanVal = 100, showPlots = 
                     
                 else:
                     
-                    print('Deleting extreme (%d) at %s' % (thisExt, str(thisDate)))
+                    if printDetails:
+                    
+                        print('Deleting extreme (%d) at %s' % (thisExt, str(thisDate)))
                     
                     if saveLogs:
                         
@@ -1384,7 +1423,7 @@ def checkPhaseLength(df, indicator, phaseLength = 5, meanVal = 100, showPlots = 
             except IndexError:
                 
                 break
-
+            
 #    for i in range(len(dataInd)): # TODO: optimization, get rid of this for loop
 #        
 #        thisExt = dataInd.iloc[i][0]
@@ -1411,7 +1450,7 @@ def checkPhaseLength(df, indicator, phaseLength = 5, meanVal = 100, showPlots = 
     
     if showPlots or savePlots:
         
-        plotIndicator(df, dataInd, savePlots = savePlots, nameSuffix = nameSuffix)
+        plotIndicator(df, dataInd, showPlots = showPlots, savePlots = savePlots, nameSuffix = nameSuffix)
         
     if saveLogs:
         
@@ -1501,7 +1540,7 @@ def checkPhaseLength(df, indicator, phaseLength = 5, meanVal = 100, showPlots = 
 #    return(dataInd)
 
 
-def pipelineOneColumnTPDetection(col, savePlots = None, saveLogs = None, createInverse = False):
+def pipelineOneColumnTPDetection(col, printDetails = True, showPlots = True, savePlots = None, saveLogs = None, createInverse = False):
     
     """
     Pipeline connecting functions to detect turning points (local extremes,
@@ -1511,6 +1550,10 @@ def pipelineOneColumnTPDetection(col, savePlots = None, saveLogs = None, createI
     -----
     col: pandas.DataFrame
         monthly pandas DataFrame (series with index in format YYYY-MM) with one column
+    printDetails: bool
+        print details about deleted extremes?
+    showPlots: bool
+        show plots?
     savePlots: str or None
         path where to save plots
     saveLogs: _io.TextIOWrapper or None
@@ -1530,35 +1573,35 @@ def pipelineOneColumnTPDetection(col, savePlots = None, saveLogs = None, createI
     
     # a) Looking for local maxima/minima
     
-    col_ind_local = getLocalExtremes(col, savePlots = savePlots, nameSuffix = '_04_localExt')
+    col_ind_local = getLocalExtremes(df = col, showPlots = showPlots, savePlots = savePlots, nameSuffix = '_04_localExt')
     
     
     # b) Check the turning points alterations
     
-    col_ind_neigh = checkNeighbourhood(df = col, indicator = col_ind_local, saveLogs = saveLogs)
-    col_ind_alter = checkAlterations(col, col_ind_neigh, saveLogs = saveLogs)
+    col_ind_neigh = checkNeighbourhood(df = col, indicator = col_ind_local, printDetails = printDetails, showPlots = showPlots, saveLogs = saveLogs)
+    col_ind_alter = checkAlterations(df = col, indicator = col_ind_neigh, printDetails = printDetails, showPlots = showPlots, saveLogs = saveLogs)
     
     
     # c) Check minimal length of cycle (15 months)
     
-    col_ind_cycleLength = checkCycleLength(col, col_ind_alter, saveLogs = saveLogs)
+    col_ind_cycleLength = checkCycleLength(df = col, indicator = col_ind_alter, printDetails = printDetails, showPlots = showPlots, saveLogs = saveLogs)
     
     
     # d) Check the turning points alterations again
     
-    col_ind_neighAgain = checkNeighbourhood(col, col_ind_cycleLength, saveLogs = saveLogs)
-    col_ind_alterAgain = checkAlterations(col, col_ind_neighAgain, saveLogs = saveLogs)
+    col_ind_neighAgain = checkNeighbourhood(df = col, indicator = col_ind_cycleLength, printDetails = printDetails, showPlots = showPlots, saveLogs = saveLogs)
+    col_ind_alterAgain = checkAlterations(df = col, indicator = col_ind_neighAgain, printDetails = printDetails, showPlots = showPlots, saveLogs = saveLogs)
     
     
     # e) Check minimal length of phase (5 months)
     
-    col_ind_phaseLength = checkPhaseLength(col, col_ind_alterAgain, saveLogs = saveLogs)
+    col_ind_phaseLength = checkPhaseLength(df = col, indicator = col_ind_alterAgain, printDetails = printDetails, showPlots = showPlots, saveLogs = saveLogs)
     
     
     # f) Check the turning points alterations for the last time
     
-    col_ind_neighLast = checkNeighbourhood(col, col_ind_phaseLength, saveLogs = saveLogs)
-    col_ind_turningPoints = checkAlterations(col, col_ind_neighLast, savePlots = savePlots, nameSuffix = '_05_ext', saveLogs = saveLogs)  
+    col_ind_neighLast = checkNeighbourhood(df = col, indicator = col_ind_phaseLength, printDetails = printDetails, showPlots = showPlots, saveLogs = saveLogs)
+    col_ind_turningPoints = checkAlterations(df = col, indicator = col_ind_neighLast, printDetails = printDetails, showPlots = showPlots, savePlots = savePlots, nameSuffix = '_05_ext', saveLogs = saveLogs)  
     
     if createInverse:
         
@@ -1573,7 +1616,7 @@ def pipelineOneColumnTPDetection(col, savePlots = None, saveLogs = None, createI
         return(col_ind_turningPoints)
 
 
-def pipelineTPDetection(df, origColumns = None, showPlots = True, savePlots = None, saveLogs = None):    
+def pipelineTPDetection(df, origColumns = None, printDetails = True, showPlots = True, savePlots = None, saveLogs = None):    
     
     """
     Pipeline connecting functions to detect turning points (local extremes,
@@ -1591,6 +1634,8 @@ def pipelineTPDetection(df, origColumns = None, showPlots = True, savePlots = No
         is provided, then the turning points are computed only once per each
         original + inverted pair of series, which leads to shorter computing
         time 
+    printDetails: bool
+        print details about deleted extremes?
     showPlots: bool
         show plots?
     savePlots: str or None
@@ -1654,14 +1699,14 @@ def pipelineTPDetection(df, origColumns = None, showPlots = True, savePlots = No
             
             if createInverse:
                 
-                col_turningPoints, col_inv_turningPoints = pipelineOneColumnTPDetection(col, savePlots = savePlots, saveLogs = saveLogs, createInverse = createInverse)
+                col_turningPoints, col_inv_turningPoints = pipelineOneColumnTPDetection(col = col, printDetails = printDetails, showPlots = showPlots, savePlots = savePlots, saveLogs = saveLogs, createInverse = createInverse)
                 
-                if savePlots:
+                if showPlots or savePlots:
                     
                     # Save also plot of inverse series (plot of original series saved during previous step)
                     
                     invColName = col_inv_turningPoints.columns[0]
-                    plotIndicator(pd.DataFrame(df[invColName][df[invColName].notnull()]), col_inv_turningPoints, savePlots = savePlots, nameSuffix = '_05_ext')
+                    plotIndicator(pd.DataFrame(df[invColName][df[invColName].notnull()]), col_inv_turningPoints, showPlots = showPlots, savePlots = savePlots, nameSuffix = '_05_ext')
                 
                 # Add to the DataFrame
                 
@@ -1669,7 +1714,7 @@ def pipelineTPDetection(df, origColumns = None, showPlots = True, savePlots = No
                 
             else:
                 
-                col_turningPoints = pipelineOneColumnTPDetection(col, savePlots = savePlots, saveLogs = saveLogs, createInverse = createInverse)
+                col_turningPoints = pipelineOneColumnTPDetection(col = col, printDetails = printDetails, showPlots = showPlots, savePlots = savePlots, saveLogs = saveLogs, createInverse = createInverse)
                 
                 # Add to the DataFrame
                 
@@ -1764,7 +1809,7 @@ def realTimeTPDetectionFromArchive(df, monthsToBeChecked = 3, indName = 'ind'):
 
 # TURNING-POINT MATCHING & EVALUATION
 
-def matchTurningPoints(ind1, ind2, lagFrom = -9, lagTo = 24):
+def matchTurningPoints(ind1, ind2, lagFrom = -9, lagTo = 24, printDetails = True, saveLogs = None):
     
     """
     Compare turning points of reference and idividual time series. 
@@ -1780,6 +1825,10 @@ def matchTurningPoints(ind1, ind2, lagFrom = -9, lagTo = 24):
         minimal lag where to look for the match, default -9 (9 months lag)
     lagTo: int
         maximal lag where to look for the match, default +24 (24 months lead)
+    printDetails: bool
+        print details about deleted extremes?
+    saveLogs: _io.TextIOWrapper or None
+        file where to save stdouts (already opended with open())
         
     Returns
     -----
@@ -1796,11 +1845,22 @@ def matchTurningPoints(ind1, ind2, lagFrom = -9, lagTo = 24):
         
     """
     
+    # TODO:
+    # Create logs?
+    
     # Input check
     
     if (lagTo <= lagFrom):
         
-        print('Error: parameter lagTo should be higher than parameter lagFrom.')
+        if printDetails:
+            
+            print("Error: parameter lagTo should be higher than parameter lagFrom.")
+        
+        if saveLogs:
+            
+            saveLogs.write("\nError: parameter lagTo should be higher than parameter lagFrom.")
+            saveLogs.flush()
+            
         return(pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame())
     
     
@@ -1818,7 +1878,14 @@ def matchTurningPoints(ind1, ind2, lagFrom = -9, lagTo = 24):
     
     if (len(refIndexes) == 0):
         
-        print('Warning: There is no overlapping period in the time series.')
+        if printDetails:
+            
+            print("Warning: There is no overlapping period in the time series.")
+            
+        if saveLogs:
+            
+            saveLogs.write("\nWarning: There is no overlapping period in the time series.")
+            
         refIndexes = ind1.index
         dataInd = pd.DataFrame(0, columns = [indName], index = refIndexes)
     
@@ -1859,7 +1926,14 @@ def matchTurningPoints(ind1, ind2, lagFrom = -9, lagTo = 24):
                     
                     else:
                         
-                        print('Warning: Missing cycle caused by short series (early turning point).')
+                        if printDetails:
+                            
+                            print("Warning: Missing cycle caused by short series (early turning point).")
+                        
+                        if saveLogs:
+                            
+                            saveLogs.write("\nWarning: Missing cycle caused by short series (early turning point).")
+                            
                         dataInd.loc[date, ['missingEarly']] = True
                     
                 else:
@@ -1876,8 +1950,14 @@ def matchTurningPoints(ind1, ind2, lagFrom = -9, lagTo = 24):
                         existingTime = dataInd.loc[dateShift, 'time']
                         
                         if (abs(existingTime) > abs(minShift)): # new peak/trough is closer
-                        
-                            print('Warning: Turning point at %s already matched, changing now from order %d to %d.' % (dateShift.strftime("%Y-%m-%d"), existingOrd, thisExtOrd))
+                            
+                            if printDetails:
+                                
+                                print("Warning: Turning point at %s already matched, changing now from order %d to %d." % (dateShift.strftime("%Y-%m-%d"), existingOrd, thisExtOrd))
+                            
+                            if saveLogs:
+                            
+                                saveLogs.write("\nWarning: Turning point at %s already matched, changing now from order %d to %d." % (dateShift.strftime("%Y-%m-%d"), existingOrd, thisExtOrd))
                             
                             existingOrdDate = dataExt[dataExt['extOrd'] == existingOrd].index
                             dataInd.loc[existingOrdDate, ['missing']] = True
@@ -1902,19 +1982,39 @@ def matchTurningPoints(ind1, ind2, lagFrom = -9, lagTo = 24):
                 
                 if (date >= min(refIndexes)): # this turning point could be in the series
                     
-                    print('Warning: Missing cycle caused by short series (regular turning point).')
+                    if printDetails:
+                        
+                        print("Warning: Missing cycle caused by short series (regular turning point).")
+                    
+                    if saveLogs:
+                            
+                        saveLogs.write("\nWarning: Missing cycle caused by short series (regular turning point).")
+                    
                     dataInd.loc[date, ['missing']] = True
                     
                 else:
                     
-                    print('Warning: Missing cycle caused by short series (early turning point).')
+                    if printDetails:
+                        
+                        print("Warning: Missing cycle caused by short series (early turning point).")
+                    
+                    if saveLogs:
+                            
+                        saveLogs.write("\nWarning: Missing cycle caused by short series (early turning point).")
+                    
                     dataInd.loc[date, ['missingEarly']] = True
         
     else:
         
-        print('Warning: There are no turning points in the reference series.')
+        if printDetails:
+            
+            print("Warning: There are no turning points in the reference series.")
+            
+        if saveLogs:
+                            
+            saveLogs.write("\nWarning: There are no turning points in the reference series.")
     
-        
+    
     dataInd.sort_index(inplace = True)
     
     
@@ -1934,11 +2034,24 @@ def matchTurningPoints(ind1, ind2, lagFrom = -9, lagTo = 24):
         
         if (thisOrder < lastOrder): 
             
-            print('Warning: Discrepancy between order of turning points %s and %s.' % (lastDate.strftime("%Y-%m-%d"), thisDate.strftime("%Y-%m-%d")))
+            if printDetails:
+            
+                print("Warning: Discrepancy between order of turning points %s and %s." % (lastDate.strftime("%Y-%m-%d"), thisDate.strftime("%Y-%m-%d")))
+            
+            if saveLogs:
+                            
+                saveLogs.write("\nWarning: Discrepancy between order of turning points %s and %s." % (lastDate.strftime("%Y-%m-%d"), thisDate.strftime("%Y-%m-%d")))
             
             if (abs(thisTime) < abs(lastTime)): # keep the one which is closer to the turning point
                 
-                print('<-- %s deleted from matched turning points.' % lastDate.strftime("%Y-%m-%d"))
+                if printDetails:
+                    
+                    print("<-- %s deleted from matched turning points." % lastDate.strftime("%Y-%m-%d"))
+                    
+                if saveLogs:
+                            
+                    saveLogs.write("\n<-- %s deleted from matched turning points." % lastDate.strftime("%Y-%m-%d"))
+                    
                 dataInd.loc[lastDate, 'extOrd'] = np.nan
                 dataInd.loc[lastDate, 'time'] = np.nan
                 
@@ -1951,7 +2064,14 @@ def matchTurningPoints(ind1, ind2, lagFrom = -9, lagTo = 24):
                 
             else:
                 
-                print('<-- %s deleted from matched turning points.' % thisDate.strftime("%Y-%m-%d"))
+                if printDetails:
+                    
+                    print("<-- %s deleted from matched turning points." % thisDate.strftime("%Y-%m-%d"))
+                    
+                if saveLogs:
+                            
+                    saveLogs.write("\n<-- %s deleted from matched turning points." % thisDate.strftime("%Y-%m-%d"))
+                
                 dataInd.loc[thisDate, 'extOrd'] = np.nan
                 dataInd.loc[thisDate, 'time'] = np.nan
                 
@@ -2000,9 +2120,21 @@ def matchTurningPoints(ind1, ind2, lagFrom = -9, lagTo = 24):
              (lastExtra > lastExt)
         )
     ):
-    
-        print('Warning: Last extreme wasn\'t marked as extra, because it was too close to the end of reference series.')
+            
+        if printDetails:
+            
+            print("Warning: Last extreme wasn\'t marked as extra, because it was too close to the end of reference series.")
+        
+        if saveLogs:
+                            
+            saveLogs.write("\nWarning: Last extreme wasn\'t marked as extra, because it was too close to the end of reference series.")
+        
         dataInd.loc[lastExtra, 'extra'] = np.nan
+    
+    
+    if saveLogs:
+        
+        saveLogs.flush()
     
     
     # Return results
@@ -2014,7 +2146,7 @@ def matchTurningPoints(ind1, ind2, lagFrom = -9, lagTo = 24):
         , pd.DataFrame(dataInd['extra']).rename(columns = {'extra': indName}))
 
 
-def pipelineTPMatching(df1, df2, ind1, ind2, showPlots = True, savePlots = None, nameSuffix = '_06_matching', saveLogs = None, bw = False, lagFrom = -9, lagTo = 24):
+def pipelineTPMatching(df1, df2, ind1, ind2, printDetails = True, showPlots = True, savePlots = None, nameSuffix = '_06_matching', saveLogs = None, bw = False, lagFrom = -9, lagTo = 24):
     
     """
     Pipeline to compare turning points of reference and idividual time series.
@@ -2032,6 +2164,8 @@ def pipelineTPMatching(df1, df2, ind1, ind2, showPlots = True, savePlots = None,
     ind2: pandas.DataFrame
         pandas DataFrame, vector of turning points of individual economic series,
         the data frame needs to have the same column names as the df2
+    printDetails: bool
+        print details about deleted extremes?
     showPlots: bool
         show plots?
     savePlots: str or None
@@ -2084,8 +2218,10 @@ def pipelineTPMatching(df1, df2, ind1, ind2, showPlots = True, savePlots = None,
         
         
         if (col.shape[0] == 0): # empty series
-        
-            print("\nWarning: Empty series.")
+            
+            if printDetails:
+                
+                print("\nWarning: Empty series.")
             
             if saveLogs:
                 
@@ -2102,12 +2238,14 @@ def pipelineTPMatching(df1, df2, ind1, ind2, showPlots = True, savePlots = None,
             
             # Match turning points
             
-            col_extOrd, col_time, col_missing, col_missingEarly, col_extra = matchTurningPoints(ind1, col_ind)
+            col_extOrd, col_time, col_missing, col_missingEarly, col_extra = matchTurningPoints(ind1 = ind1, ind2 = col_ind, printDetails = printDetails, saveLogs = saveLogs)
             
             
             # Plot turning points
             
-            compareTwoIndicators(df1, col, ind1, col_ind, col_extOrd, savePlots = savePlots, nameSuffix = nameSuffix, bw = bw)
+            if (showPlots or savePlots):
+                
+                compareTwoIndicators(df1, col, ind1, col_ind, col_extOrd, showPlots = showPlots, savePlots = savePlots, nameSuffix = nameSuffix, bw = bw)
             
         
         # Add to the DataFrame
@@ -2117,6 +2255,7 @@ def pipelineTPMatching(df1, df2, ind1, ind2, showPlots = True, savePlots = None,
         missing = pd.concat([missing, col_missing], axis = 1)
         missingEarly = pd.concat([missingEarly, col_missingEarly], axis = 1)
         extra = pd.concat([extra, col_extra], axis = 1) 
+    
     
     # Return results
     
@@ -2491,7 +2630,7 @@ def compareTwoSeries(df1, df2):
     plt.show()
     
 
-def plotIndicator(df1, df2, savePlots = None, namePrefix = '', nameSuffix = ''):
+def plotIndicator(df1, df2, showPlots = True, savePlots = None, namePrefix = '', nameSuffix = ''):
     
     """
     Plot series and vertical lines for not null indicator values.
@@ -2502,6 +2641,8 @@ def plotIndicator(df1, df2, savePlots = None, namePrefix = '', nameSuffix = ''):
         pandas DataFrame (with one column)
     df2: pandas.DataFrame
         pandas DataFrame (with one column, which is used to indicate vertical lines)
+    showPlots: bool
+        show plots?
     savePlots: str or None
         path where to save plot
     namePreffix: str
@@ -2509,6 +2650,11 @@ def plotIndicator(df1, df2, savePlots = None, namePrefix = '', nameSuffix = ''):
     nameSuffix: str
         plot name suffix used when savePlots != None
     """
+    
+    if not(showPlots or savePlots):
+        
+        print('Warning: There is no point in running compareTwoIndicators() without either showing or saving the plots!')
+        
     
     if df1.columns[0] == df2.columns[0]:
         
@@ -2534,6 +2680,8 @@ def plotIndicator(df1, df2, savePlots = None, namePrefix = '', nameSuffix = ''):
         data_values = [row['time'] for index, row in plotMe.iterrows() if (index.month == 1 & (index.year % 5 == 0))]
         data_labels = [index.strftime('%Y-%m') for index, row in plotMe.iterrows() if (index.month == 1 & (index.year % 5 == 0))]
     
+    plt.ioff() # Turn interactive plotting off
+    
     fig, ax = plt.subplots(nrows = 1, ncols = 1, figsize = (6, 2.5))
     
     plt.xticks(data_values, data_labels, rotation = 60)
@@ -2558,11 +2706,15 @@ def plotIndicator(df1, df2, savePlots = None, namePrefix = '', nameSuffix = ''):
     if savePlots:
         
         fig.savefig(os.path.join(savePlots, namePrefix + str(col1) + nameSuffix), dpi = 300)
+    
+    if showPlots:
         
-    plt.show()
+        plt.show()
+    
+    plt.close(fig)
 
 
-def compareTwoIndicators(df1, df2, ind1, ind2, ord2, savePlots = None, namePrefix = '', nameSuffix = '', bw = False):
+def compareTwoIndicators(df1, df2, ind1, ind2, ord2, showPlots = True, savePlots = None, namePrefix = '', nameSuffix = '', bw = False):
     
     """
     Plot reference series with turning points and compare it with turning points of second time series.
@@ -2579,6 +2731,8 @@ def compareTwoIndicators(df1, df2, ind1, ind2, ord2, savePlots = None, namePrefi
         pandas DataFrame (with one column), vector of local extremes of second series
     ord2: pandas.DataFrame
         pandas DataFrame (with one column), orders of local extremes of second series
+    showPlots: bool
+        show plots?
     savePlots: str or None
         path where to save plot
     namePreffix: str
@@ -2588,7 +2742,11 @@ def compareTwoIndicators(df1, df2, ind1, ind2, ord2, savePlots = None, namePrefi
     bw: bool
         plot in black and white, default is False
     """
+    
+    if not(showPlots or savePlots):
         
+        print('Warning: There is no point in running compareTwoIndicators() without either showing or saving the plots!')
+    
     plotMe = pd.concat([df1.rename(columns = {df1.columns[0]: 'first'})
                         , df2.rename(columns = {df2.columns[0]: 'second'})
                         , ind1.rename(columns = {ind1.columns[0]: 'firstInd'})
@@ -2620,6 +2778,8 @@ def compareTwoIndicators(df1, df2, ind1, ind2, ord2, savePlots = None, namePrefi
         
         cmap = mpl.cm.get_cmap(name = 'rainbow')
         currentColors = [cmap(1.*i/numColors) for i in range(numColors)]
+    
+    plt.ioff() # Turn interactive plotting off
     
     fig, (ax1, ax2) = plt.subplots(2, sharex = True)
     
@@ -2677,8 +2837,12 @@ def compareTwoIndicators(df1, df2, ind1, ind2, ord2, savePlots = None, namePrefi
     if savePlots:
         
         fig.savefig(os.path.join(savePlots, namePrefix + str(df2.columns[0]) + nameSuffix), dpi = 300)
-
-    plt.show()
+    
+    if showPlots:
+        
+        plt.show()
+        
+    plt.close(fig)
 
 
 def plotArchive(df, ind = None, savePlots = None, namePlot = 'archiveChanges', colorMap = 'rainbow'):
