@@ -10,6 +10,12 @@ import re
 import datetime
 
 
+# Reload new version
+
+import importlib
+importlib.reload(cif)
+
+
 # SETTINGS
 
 print(os.environ['X13PATH']) # Check the availability of X-13ARIMA-SEATS model (downloaded from https://www.census.gov/srd/www/x13as/)
@@ -147,14 +153,16 @@ fileLogs.close()
 
 # 3.2) INDIVIDUAL INDICATORS
 
-fileLogs = open(os.path.join(outputDir, 'fileLogs_dataEvaluation.txt'), 'w')
-data_ind_turningPoints = cif.pipelineTPDetection(df = data_SA_HP_norm, origColumns = list(data.columns), savePlots = outputDir, saveLogs = fileLogs)
+fileLogs = open(os.path.join(outputDir, country + '_fileLogs_dataEvaluation.txt'), 'w')
+data_ind_turningPoints = cif.pipelineTPDetection(df = data_SA_HP_norm, origColumns = list(data.columns), showPlots = False, savePlots = outputDir, saveLogs = fileLogs)
 fileLogs.close()
 
 
 # 4) TURNING-POINTS MATCHING
 
-data_ind_extOrd, data_ind_time, data_ind_missing, data_ind_missingEarly, data_ind_extra = cif.pipelineTPMatching(df1 = rs_SA_HP_norm, df2 = data_SA_HP_norm, ind1 = rs_ind_turningPoints, ind2 = data_ind_turningPoints, savePlots = outputDir, nameSuffix = '_06_matching' + '_rs' + country)
+fileLogs = open(os.path.join(outputDir, country + '_fileLogs_tpMatching.txt'), 'w')
+data_ind_extOrd, data_ind_time, data_ind_missing, data_ind_missingEarly, data_ind_extra = cif.pipelineTPMatching(df1 = rs_SA_HP_norm, df2 = data_SA_HP_norm, ind1 = rs_ind_turningPoints, ind2 = data_ind_turningPoints, savePlots = outputDir, saveLogs = fileLogs, nameSuffix = '_06_matching' + '_rs' + country)
+fileLogs.close()
 
 
 # 5) EVALUATION
