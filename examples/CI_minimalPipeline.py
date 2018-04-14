@@ -2,8 +2,6 @@
 # MINIMAL PIPELINE
 
 import os
-os.chdir('C:/path/') # Set path to CIF folder
-
 from cif import cif
 import pandas as pd
 import re
@@ -16,13 +14,19 @@ import importlib
 importlib.reload(cif)
 
 
-# SETTINGS
+# CHECK AVAILABILITY
 
 print(os.environ['X13PATH']) # Check the availability of X-13ARIMA-SEATS model (downloaded from https://www.census.gov/srd/www/x13as/)
+
+
+# SETTINGS
+
+os.chdir('C:/path/') # Set path to CIF folder
 
 bw = False # True for black and white visualisations
 
 country = 'CZE' # Select target country
+
 
 # OUTPUT DIRECTORY
 
@@ -59,7 +63,7 @@ subjects_LOLI = subjects_all[ind_LOLI]
 # 1d) Candidate time series
 
 subjects_adj = subjects_all[-(ind_LOCO | ind_LORS | ind_LOLI)]
-data_adj = data_all.select(lambda x: x[colMultiInd] in list(subjects_adj['id']), axis = 1)
+data_adj = data_all.loc[ : , [x for x in data_all.columns if x[colMultiInd] in list(subjects_adj['id'])]].copy()
 
                     
 # 2) DATA TRANSFORMATIONS
@@ -147,7 +151,7 @@ fileLogs.close()
 # 3.1) REFERENCE SERIES
 
 fileLogs = open(os.path.join(outputDir, country + '_fileLogs_rsEvaluation.txt'), 'w')
-rs_ind_turningPoints = cif.pipelineTPDetection(rs_SA_HP_norm, savePlots = outputDir, saveLogs = fileLogs)
+rs_ind_turningPoints = cif.pipelineTPDetection(df = rs_SA_HP_norm, savePlots = outputDir, saveLogs = fileLogs)
 fileLogs.close()
     
 
