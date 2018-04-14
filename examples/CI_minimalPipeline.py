@@ -8,12 +8,6 @@ import re
 import datetime
 
 
-# Reload new version
-
-import importlib
-importlib.reload(cif)
-
-
 # CHECK AVAILABILITY
 
 print(os.environ['X13PATH']) # Check the availability of X-13ARIMA-SEATS model (downloaded from https://www.census.gov/srd/www/x13as/)
