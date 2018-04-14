@@ -265,7 +265,7 @@ def createDataFrameFromOECD(countries = ['CZE', 'AUT', 'DEU', 'POL', 'SVK'], dsn
 def getOnlyBestMeasure(df, priorityList, countryColName = 'country', subjectColName = 'subject', measureColName = 'measure'):
     
     """
-    Select only one measure per subject.
+    Select only one measure per country and subject.
     
     Parameters
     -----
@@ -306,7 +306,8 @@ def getOnlyBestMeasure(df, priorityList, countryColName = 'country', subjectColN
         
         if (c != 'oneCountryOnly'):
             
-            dfCountryPart = df.select(lambda x: x[countryMultiInd] == c, axis = 1).copy()
+            #dfCountryPart = df.select(lambda x: x[countryMultiInd] == c, axis = 1).copy()
+            dfCountryPart = df.loc[ : , [x for x in df.columns if x[countryMultiInd] == c]].copy()
             
         else:
             
@@ -314,7 +315,8 @@ def getOnlyBestMeasure(df, priorityList, countryColName = 'country', subjectColN
         
         for i in list(dfCountryPart.columns.get_level_values(subjectMultiInd).unique()):
             
-            dfPart = dfCountryPart.select(lambda x: x[subjectMultiInd] == i, axis = 1).copy()
+            #dfPart = dfCountryPart.select(lambda x: x[subjectMultiInd] == i, axis = 1).copy()
+            dfPart = dfCountryPart.loc[ : , [x for x in dfCountryPart.columns if x[subjectMultiInd] == i]].copy()
             
             if dfPart.shape[1] > 1: # Several measures of one subject
                 
@@ -328,7 +330,8 @@ def getOnlyBestMeasure(df, priorityList, countryColName = 'country', subjectColN
                     
                     if selMeasure in col:
                         
-                        newCol = dfPart.select(lambda x: x[measureMultiInd] == selMeasure, axis = 1)
+                        #newCol = dfPart.select(lambda x: x[measureMultiInd] == selMeasure, axis = 1)
+                        newCol = dfPart.loc[ : , [x for x in dfPart.columns if x[measureMultiInd] == selMeasure]].copy()
                         #newCol.columns = ['_'.join(col).strip() for col in newCol.columns.values]
                         data =  pd.concat([data, newCol], axis = 1)
                         
@@ -593,6 +596,8 @@ def getSAForecasts(series, forecastSteps = 6, showPlots = True, savePlots = None
         series_SA_withForecast = series_SA.append(series_SA_forecast)
         #series_SA_withForecast.set_index(pd.date_range(series_SA.index[0], periods = len(series_SA) + forecastSteps, freq='MS'), inplace = True)
         
+        mpl.style.use('classic') # old matplotlib visualization style
+        
         if showPlots:
             
             series_X13.plot()
@@ -602,8 +607,15 @@ def getSAForecasts(series, forecastSteps = 6, showPlots = True, savePlots = None
         if savePlots:
             # saving only SA with forecast
             
+            plt.ioff() # Turn interactive plotting off
+            
             fig, ax = plt.subplots(nrows = 1, ncols = 1, figsize = (6, 2))
+            fig.patch.set_facecolor('white')
+            ax.ticklabel_format(useOffset = False, style = 'plain', axis = 'y')
+            plt.xticks(fontsize = 10)
+            plt.yticks(fontsize = 10)
             ax.plot(series_SA_withForecast, color = 'gray')
+            ax.margins(x = 0.0, y = 0.1)
             fig.savefig(os.path.join(savePlots, str(series.columns[0]) + '_01_SA.png'), dpi = 300)
             plt.close(fig)
             
@@ -639,8 +651,15 @@ def getSAForecasts(series, forecastSteps = 6, showPlots = True, savePlots = None
         if savePlots:
             # saving only SA with forecast
             
+            plt.ioff() # Turn interactive plotting off
+            
             fig, ax = plt.subplots(nrows = 1, ncols = 1, figsize = (6, 2))
+            fig.patch.set_facecolor('white')
+            ax.ticklabel_format(useOffset = False, style = 'plain', axis = 'y')
+            plt.xticks(fontsize = 10)
+            plt.yticks(fontsize = 10)
             ax.plot(series_SA_withForecast, color = 'gray')
+            ax.margins(x = 0.0, y = 0.1)
             fig.savefig(os.path.join(savePlots, str(series.columns[0]) + '_01_SA.png'), dpi = 300)
             plt.close(fig)
     
@@ -693,6 +712,8 @@ def applyHPTwice(series, dateMax = None, lambda1 = 133107.94, lambda2 = 13.93, s
     series_HP2 = smHP.hpfilter(series_HP1[0], lamb = lambda2)
     series_HP = series_HP2[1][series_HP2[1].index <= dateMax] # without forecasted values
     
+    mpl.style.use('classic') # old matplotlib visualization style
+    
     if showPlots:
         
         plotHP(series_HP1)
@@ -700,20 +721,37 @@ def applyHPTwice(series, dateMax = None, lambda1 = 133107.94, lambda2 = 13.93, s
         
     if savePlots:
         
+        plt.ioff() # Turn interactive plotting off
+        
         fig, ax = plt.subplots(nrows = 1, ncols = 1, figsize = (6, 2))
+        fig.patch.set_facecolor('white')
+        ax.ticklabel_format(useOffset = False, style = 'plain', axis = 'y')
+        plt.xticks(fontsize = 10)
+        plt.yticks(fontsize = 10)
         ax.plot(series_HP, color = 'gray')
+        ax.margins(x = 0.0, y = 0.1)
         fig.savefig(os.path.join(savePlots, str(series_HP.columns[0]) + '_02_HP.png'), dpi = 300)
         plt.close(fig)
         
         if saveAllPlots:
             
-            fig, ax = plt.subplots(nrows = 1, ncols = 1)
+            fig, ax = plt.subplots(nrows = 1, ncols = 1, figsize = (6, 2))
+            fig.patch.set_facecolor('white')
+            ax.ticklabel_format(useOffset = False, style = 'plain', axis = 'y')
+            plt.xticks(fontsize = 10)
+            plt.yticks(fontsize = 10)
             plotHP(series_HP1)
+            ax.margins(x = 0.0, y = 0.1)
             fig.savefig(os.path.join(savePlots, str(series_HP.columns[0]) + '_02a_HP.png'), dpi = 300)
             plt.close(fig)
             
-            fig, ax = plt.subplots(nrows = 1, ncols = 1)
+            fig, ax = plt.subplots(nrows = 1, ncols = 1, figsize = (6, 2))
+            fig.patch.set_facecolor('white')
+            ax.ticklabel_format(useOffset = False, style = 'plain', axis = 'y')
+            plt.xticks(fontsize = 10)
+            plt.yticks(fontsize = 10)
             plotHP(series_HP2, phase = 2)
+            ax.margins(x = 0.0, y = 0.1)
             fig.savefig(os.path.join(savePlots, str(series_HP.columns[0]) + '_02b_HP.png'), dpi = 300)
             plt.close(fig)
     
@@ -752,14 +790,23 @@ def normaliseSeries(series, createInverse = False, showPlots = True, savePlots =
     
     series_norm = ((series - mean) / mad) + 100
     
+    mpl.style.use('classic') # old matplotlib visualization style
+    
     if showPlots:
         
         series_norm.plot()
         
     if savePlots:
         
+        plt.ioff() # Turn interactive plotting off
+        
         fig, ax = plt.subplots(nrows = 1, ncols = 1, figsize = (6, 2))
+        fig.patch.set_facecolor('white')
+        ax.ticklabel_format(useOffset = False, style = 'plain', axis = 'y')
+        plt.xticks(fontsize = 10)
+        plt.yticks(fontsize = 10)
         ax.plot(series_norm, color = 'gray')
+        ax.margins(x = 0.0, y = 0.1)
         fig.savefig(os.path.join(savePlots, str(series_norm.columns[0]) + '_03_norm.png'), dpi = 300)
         plt.close(fig)
     
@@ -811,11 +858,20 @@ def pipelineOneColumnTransformations(col, showPlots = True, savePlots = None, sa
     """
     
     # a) Save plot of the original series
+    
+    mpl.style.use('classic') # old matplotlib visualization style
             
     if savePlots:
+        
+        plt.ioff() # Turn interactive plotting off
     
         fig, ax = plt.subplots(nrows = 1, ncols = 1, figsize = (6, 2))
+        fig.patch.set_facecolor('white')
+        ax.ticklabel_format(useOffset = False, style = 'plain', axis = 'y')
+        plt.xticks(fontsize = 10)
+        plt.yticks(fontsize = 10)
         ax.plot(col, color = 'gray')
+        ax.margins(x = 0.0, y = 0.1)
         fig.savefig(os.path.join(savePlots, str(col.columns[0]) + '_00_orig.png'), dpi = 300)
         plt.close(fig)
     
@@ -1136,7 +1192,11 @@ def checkNeighbourhood(df, indicator, printDetails = True, showPlots = True, sav
         
             nextDate = dataInd[thisDate:][1:][dataInd != 0].first_valid_index()
             
-        except IndexError:
+        except IndexError: # previous versions of pandas throw exception
+            
+            nextDate = maxDate
+            
+        if nextDate == None: # newer versions of pandas returns None
             
             nextDate = maxDate
         
@@ -2468,7 +2528,7 @@ def pipelineEvaluation(df1, df2, missing, missingEarly, extra, time, checkCorr =
         
         highCorr = cMat[cMat.sum(axis = 1) != 0].index
                         
-        print('\n%d indicators aren\'t considered because of high correlation:' % len(highCorr))
+        print('\n%d indicators not considered because of high correlation:' % len(highCorr))
         print('\n'.join(highCorr))
         
         df_selectedEval = df_selectedEval.loc[~df_selectedEval.index.isin(highCorr)]
@@ -2571,6 +2631,8 @@ def plotHP(data, phase = 1):
     fontP = mpl.font_manager.FontProperties()
     fontP.set_size('xx-small')
     
+    plt.ioff() # Turn interactive plotting off
+    
     plt.figure(1)
     plt.subplot(211)
     plt.title(plotTitle)
@@ -2618,13 +2680,26 @@ def compareTwoSeries(df1, df2):
         data_values = [row['time'] for index, row in plotMe.iterrows() if (index.month == 1 & (index.year % 5 == 0))]
         data_labels = [index.strftime('%Y-%m') for index, row in plotMe.iterrows() if (index.month == 1 & (index.year % 5 == 0))]
     
-    fig, ax1 = plt.subplots()
+    plt.ioff() # Turn interactive plotting off
     
-    plt.xticks(data_values, data_labels, rotation = 60)
+    fig, ax1 = plt.subplots(figsize = (6, 2.5))
+    
+    fig.patch.set_facecolor('white')
+    
+    ax1.ticklabel_format(useOffset = False, style = 'plain', axis = 'y')
+    
+    plt.xticks(data_values, data_labels, fontsize = 10, rotation = 60)
+    plt.yticks(fontsize = 10) # this affects only the first y-axis
     
     ax1.plot(plotMe[-plotMe[col1].isnull()]['time'], plotMe[-plotMe[col1].isnull()][col1], linestyle = '-', color = 'gray')
+    
     ax2 = ax1.twinx()
+    ax2.ticklabel_format(useOffset = False, style = 'plain', axis = 'y')
     ax2.plot(plotMe[-plotMe[col2].isnull()]['time'], plotMe[-plotMe[col2].isnull()][col2], linestyle = '-', color = 'black')
+    plt.yticks(fontsize = 10) # this affects only the secondary y-axis
+    
+    ax1.margins(x = 0.0, y = 0.1)
+    ax2.margins(x = 0.0, y = 0.1)
     
     fig.tight_layout() 
     plt.show()
@@ -2650,6 +2725,8 @@ def plotIndicator(df1, df2, showPlots = True, savePlots = None, namePrefix = '',
     nameSuffix: str
         plot name suffix used when savePlots != None
     """
+    
+    mpl.style.use('classic') # old matplotlib visualization style
     
     if not(showPlots or savePlots):
         
@@ -2684,7 +2761,11 @@ def plotIndicator(df1, df2, showPlots = True, savePlots = None, namePrefix = '',
     
     fig, ax = plt.subplots(nrows = 1, ncols = 1, figsize = (6, 2.5))
     
-    plt.xticks(data_values, data_labels, rotation = 60)
+    fig.patch.set_facecolor('white')
+    
+    ax.ticklabel_format(useOffset = False, style = 'plain', axis = 'y')
+    plt.xticks(data_values, data_labels, fontsize = 10, rotation = 60)
+    plt.yticks(fontsize = 10)
     
     ax.plot(plotMe[-plotMe[col1].isnull()]['time'], plotMe[-plotMe[col1].isnull()][col1], linestyle = '-', color = 'gray')
     
@@ -2700,7 +2781,9 @@ def plotIndicator(df1, df2, showPlots = True, savePlots = None, namePrefix = '',
         elif row[col2] == -1:
             
             plt.axvline(x = row['time'], linestyle = '-.', color = 'black')
-    
+            
+    ax.margins(x = 0.0, y = 0.1)
+                
     fig.tight_layout() 
     
     if savePlots:
@@ -2743,9 +2826,12 @@ def compareTwoIndicators(df1, df2, ind1, ind2, ord2, showPlots = True, savePlots
         plot in black and white, default is False
     """
     
+    mpl.style.use('classic') # old matplotlib visualization style
+    
     if not(showPlots or savePlots):
         
         print('Warning: There is no point in running compareTwoIndicators() without either showing or saving the plots!')
+    
     
     plotMe = pd.concat([df1.rename(columns = {df1.columns[0]: 'first'})
                         , df2.rename(columns = {df2.columns[0]: 'second'})
@@ -2781,11 +2867,16 @@ def compareTwoIndicators(df1, df2, ind1, ind2, ord2, showPlots = True, savePlots
     
     plt.ioff() # Turn interactive plotting off
     
-    fig, (ax1, ax2) = plt.subplots(2, sharex = True)
+    fig, (ax1, ax2) = plt.subplots(2, sharex = True, figsize = (6, 4.5))
     
-    plt.xticks(data_values, data_labels, rotation = 60)
+    fig.patch.set_facecolor('white')
     
-    # reference series
+    ax1.ticklabel_format(useOffset = False, style = 'plain', axis = 'y')
+    ax2.ticklabel_format(useOffset = False, style = 'plain', axis = 'y')
+    plt.xticks(data_values, data_labels, fontsize = 10, rotation = 60)
+    plt.yticks(fontsize = 10)
+    
+    # Reference series
     
     ord1 = 0
     ax1.plot(plotMe['time'], plotMe['first'], linestyle = '-', color = 'gray')
@@ -2808,7 +2899,7 @@ def compareTwoIndicators(df1, df2, ind1, ind2, ord2, showPlots = True, savePlots
         ord1 += 1
     
     
-    # individual series
+    # Individual series
             
     ax2.plot(plotMe['time'], plotMe['second'], linestyle = '-', color = 'gray')
     
@@ -2832,6 +2923,9 @@ def compareTwoIndicators(df1, df2, ind1, ind2, ord2, showPlots = True, savePlots
             
         ax2.axvline(x = row['time'], linestyle = ls, color = c)
     
+    ax1.margins(x = 0.0, y = 0.1)
+    ax2.margins(x = 0.0, y = 0.1)
+    
     fig.tight_layout()
     
     if savePlots:
@@ -2845,7 +2939,7 @@ def compareTwoIndicators(df1, df2, ind1, ind2, ord2, showPlots = True, savePlots
     plt.close(fig)
 
 
-def plotArchive(df, ind = None, savePlots = None, namePlot = 'archiveChanges', colorMap = 'rainbow'):
+def plotArchive(df, ind = None, showPlots = True, savePlots = None, namePlot = 'archiveChanges', colorMap = 'rainbow'):
     
     """
     Visualize data revisions.
@@ -2859,6 +2953,8 @@ def plotArchive(df, ind = None, savePlots = None, namePlot = 'archiveChanges', c
         in '%Y%m' format (e.g., 200105)
     ind: pandas.DataFrame
         pandas DataFrame (with one column, which is used to indicate vertical lines)
+    showPlots: bool
+        show plots?
     savePlots: str or None
         path where to save plot
     namePlot: str
@@ -2867,6 +2963,13 @@ def plotArchive(df, ind = None, savePlots = None, namePlot = 'archiveChanges', c
         colormap code, see https://matplotlib.org/users/colormaps.html
         for examples
     """
+    
+    mpl.style.use('classic') # old matplotlib visualization style
+    
+    if not(showPlots or savePlots):
+        
+        print('Warning: There is no point in running compareTwoIndicators() without either showing or saving the plots!')
+        
     
     plotMe = df.copy()
     plotMe.dropna(how = 'all', inplace = True)
@@ -2900,8 +3003,15 @@ def plotArchive(df, ind = None, savePlots = None, namePlot = 'archiveChanges', c
     
     # Plot
     
+    plt.ioff() # Turn interactive plotting off
+    
     fig, ax = plt.subplots(nrows = 1, ncols = 1, figsize = (6, 2.5))
-    plt.xticks(data_values, data_labels, rotation = 60)
+    
+    fig.patch.set_facecolor('white')
+    
+    ax.ticklabel_format(useOffset = False, style = 'plain', axis = 'y')
+    plt.xticks(data_values, data_labels, fontsize = 10, rotation = 60)
+    plt.yticks(fontsize = 10)
     
     for i, thisCol in enumerate(plotMe.columns):
     
@@ -2939,12 +3049,20 @@ def plotArchive(df, ind = None, savePlots = None, namePlot = 'archiveChanges', c
                     
                 ax.axvline(x = row['time'], linestyle = ls, color = 'gray')
     
+    ax.margins(x = 0.0, y = 0.1)
+    
+    fig.tight_layout()
     
     if savePlots:
         
-        fig.savefig(os.path.join(savePlots, namePlot), dpi = 300, bbox_inches='tight')
+        fig.savefig(os.path.join(savePlots, namePlot), dpi = 300, bbox_inches = 'tight')
     
-    plt.show()
+    if showPlots:
+        
+        plt.show()
+        
+    plt.close(fig)
+
 
 
 #def widgetThumbnail(f, thumbName, width = 1024, height = 768):
