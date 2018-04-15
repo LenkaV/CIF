@@ -2867,14 +2867,17 @@ def compareTwoIndicators(df1, df2, ind1, ind2, ord2, showPlots = True, savePlots
     
     plt.ioff() # Turn interactive plotting off
     
-    fig, (ax1, ax2) = plt.subplots(2, sharex = True, figsize = (6, 4.5))
+    mpl.rc('font', size = 10) # TODO: use this method instead of the fontsize also in other functions
+    mpl.rc('xtick', labelsize = 10)
+    mpl.rc('ytick', labelsize = 10)
+    
+    fig, (ax1, ax2) = plt.subplots(2, sharex = True, figsize = (6, 4))
     
     fig.patch.set_facecolor('white')
     
     ax1.ticklabel_format(useOffset = False, style = 'plain', axis = 'y')
     ax2.ticklabel_format(useOffset = False, style = 'plain', axis = 'y')
-    plt.xticks(data_values, data_labels, fontsize = 10, rotation = 60)
-    plt.yticks(fontsize = 10)
+    plt.xticks(data_values, data_labels, rotation = 60)
     
     # Reference series
     
