@@ -1,3 +1,5 @@
 dist/
 cif.egg-info/
 examples/.ipynb_checkpoints/
+examples/maps/
+examples/plots*

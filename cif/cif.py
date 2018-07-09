@@ -17,6 +17,7 @@ from dateutil.relativedelta import relativedelta
 #from pathlib import Path
 #import numbers
 import warnings
+import zipfile
 
 
 # OECD API FUNCTIONS
@@ -588,14 +589,23 @@ def getSAForecasts(series, forecastSteps = 6, showPlots = True, savePlots = None
         #print(series_SA_ARIMA.summary())
         
         series_SA_forecast = series_SA_ARIMA.forecast(steps = forecastSteps)[0] # use ARIMA with X13 specifications to create forecasts (forecasts with TRAMO-SEATS directly in X13 doesn't work)
-        series_SA_forecast = pd.DataFrame(series_SA_forecast
-                                      , columns = [series.columns[0]]
-                                      , index = pd.date_range(series_SA.index[-1], periods = forecastSteps + 1, freq='MS')[1:]
-                                      )
         
-        series_SA_withForecast = series_SA.append(series_SA_forecast)
-        #series_SA_withForecast.set_index(pd.date_range(series_SA.index[0], periods = len(series_SA) + forecastSteps, freq='MS'), inplace = True)
+        if series_SA_forecast.any(): # null forecasts
+            
+            print('\nWARNING: Returning seasonally adjusted time series without forecasts.')
+            
+            series_SA_withForecast = series_SA
+            
+        else:
         
+            series_SA_forecast = pd.DataFrame(series_SA_forecast
+                                          , columns = [series.columns[0]]
+                                          , index = pd.date_range(series_SA.index[-1], periods = forecastSteps + 1, freq='MS')[1:]
+                                          )
+            
+            series_SA_withForecast = series_SA.append(series_SA_forecast)
+            #series_SA_withForecast.set_index(pd.date_range(series_SA.index[0], periods = len(series_SA) + forecastSteps, freq='MS'), inplace = True)
+            
         mpl.style.use('classic') # old matplotlib visualization style
         
         if showPlots:
@@ -788,9 +798,20 @@ def normaliseSeries(series, createInverse = False, showPlots = True, savePlots =
     mean = series.mean()[0]
     mad = (series - mean).abs().sum()[0] / series.shape[0] # mean absolute deviation
     
-    series_norm = ((series - mean) / mad) + 100
+    if mad != 0:
+    
+        series_norm = ((series - mean) / mad) + 100
+        
+    else: # zero mean abs. deviation
+        
+        series_norm = (series - mean) + 100
     
     mpl.style.use('classic') # old matplotlib visualization style
+    
+    if series_norm.isnull().values.all(): # all values of normalised series are null
+        
+        showPlots = False # otherwise error in matplotlib
+        savePlots = False # otherwise error in matplotlib
     
     if showPlots:
         
@@ -813,7 +834,15 @@ def normaliseSeries(series, createInverse = False, showPlots = True, savePlots =
     if createInverse:
         
         colName = series.columns[0]
-        series_inv_norm = ((series - mean) / mad) * (-1) + 100
+        
+        if mad != 0:
+            
+            series_inv_norm = ((series - mean) / mad) * (-1) + 100
+        
+        else:
+            
+            series_inv_norm = (series - mean) * (-1) + 100
+        
         series_inv_norm = series_inv_norm.rename(columns = {colName: str(colName) + '_INV'})
         
         return(series_norm, series_inv_norm)
@@ -901,13 +930,13 @@ def pipelineOneColumnTransformations(col, showPlots = True, savePlots = None, sa
     
     if createInverse:
         
-        col_SA_HP_norm, col_inv_SA_HP_norm = normaliseSeries(col_SA_HP, createInverse = createInverse, showPlots = showPlots, savePlots = savePlots)
+        col_SA_HP_norm, col_inv_SA_HP_norm = normaliseSeries(series = col_SA_HP, createInverse = createInverse, showPlots = showPlots, savePlots = savePlots)
         
         return(col_SA_withForecast, col_SA_trend, col_SA_HP, col_SA_HP_norm, col_inv_SA_HP_norm)
     
     else:
         
-        col_SA_HP_norm = normaliseSeries(col_SA_HP, createInverse = createInverse, showPlots = showPlots, savePlots = savePlots)
+        col_SA_HP_norm = normaliseSeries(series = col_SA_HP, createInverse = createInverse, showPlots = showPlots, savePlots = savePlots)
         
         return(col_SA_withForecast, col_SA_trend, col_SA_HP, col_SA_HP_norm)
 
@@ -1176,11 +1205,19 @@ def checkNeighbourhood(df, indicator, printDetails = True, showPlots = True, sav
     
     maxDate = dataInd.index[-1]
     
-    try:
+#    try: # new version of pandas doesn't return error, but None value
+#        
+#        thisDate = dataInd[dataInd != 0].first_valid_index()
+#        
+#    except:
+#        
+#        thisDate = maxDate
+        
+    if (dataInd[dataInd != 0].first_valid_index() != None):
         
         thisDate = dataInd[dataInd != 0].first_valid_index()
         
-    except:
+    else:
         
         thisDate = maxDate
     
@@ -1383,11 +1420,12 @@ def checkCycleLength(df, indicator, cycleLength = 15, printDetails = True, showP
     return(dataInd)
 
 
-def checkPhaseLength(df, indicator, phaseLength = 5, meanVal = 100, printDetails = True, showPlots = True, savePlots = None, nameSuffix = '', saveLogs = None):
+def checkPhaseLength(df, indicator, keepFirst = False, phaseLength = 5, meanVal = 100, printDetails = True, showPlots = True, savePlots = None, nameSuffix = '', saveLogs = None):
     
     """
     Check the minimal length of phase, otherwise delete one of the turning
-    points (the one which is less different from the mean).
+    points and keep only the first one (if keepFirst = True) or the one
+    which is less different from the mean (if keepFirst = False, default).
     
     Parameters
     -----
@@ -1395,6 +1433,9 @@ def checkPhaseLength(df, indicator, phaseLength = 5, meanVal = 100, printDetails
         pandas DataFrame (with one column), vector of values
     indicator: pandas.DataFrame
         pandas DataFrame (with one column), vector of local extremes
+    keepFirst: bool
+        the first peak or trough is kept if True, the highest peak or the lowest
+        trough is kept if False (deault)
     phaseLength: int
         minimal lenght of the phase (in months)
     meanVal: float
@@ -1443,10 +1484,17 @@ def checkPhaseLength(df, indicator, phaseLength = 5, meanVal = 100, printDetails
             
             if (realLength <= (phaseLength + 1)): # too short to be a phase?
                 
-                lastVal = (df.loc[lastDate][0] - meanVal) * lastExt
-                thisVal = (df.loc[thisDate][0] - meanVal) * thisExt
+                if keepFirst:
+                    
+                    lastVal = 100 # values are not important for keepFirst option...
+                    thisVal = 100 # ... and the df series doesn't have to cover all possible dates
+                    
+                else:
+                    
+                    lastVal = (df.loc[lastDate][0] - meanVal) * lastExt
+                    thisVal = (df.loc[thisDate][0] - meanVal) * thisExt
                 
-                if (thisVal > lastVal): # keep the one, which is deviated more (or the earlier one when they equal)
+                if (not(keepFirst) and (thisVal > lastVal)): # keep the one, which is deviated more (or the earlier one when they equal)
                     
                     if printDetails:
                         
@@ -1470,6 +1518,10 @@ def checkPhaseLength(df, indicator, phaseLength = 5, meanVal = 100, printDetails
                         saveLogs.write('\nDeleting extreme (%d) at %s' % (thisExt, str(thisDate)))
                     
                     dataInd.loc[thisDate] = 0
+                    
+                if keepFirst: # the alterations need to be checked after each deletion
+                    
+                    dataInd = checkAlterations(df = df, indicator = dataInd, keepFirst = True, showPlots = False)
                     
             else: 
                 
@@ -1783,7 +1835,7 @@ def pipelineTPDetection(df, origColumns = None, printDetails = True, showPlots =
     return(turningPoints)
 
 
-def realTimeTPDetectionFromArchive(df, monthsToBeChecked = 3, indName = 'ind'):
+def realTimeTPDetectionFromArchive(df, monthsToBeChecked = 3, phaseLength = None, indName = 'ind'):
     
     """
     Detect turning points from archive values of the series in real time.
@@ -1797,6 +1849,8 @@ def realTimeTPDetectionFromArchive(df, monthsToBeChecked = 3, indName = 'ind'):
         in '%Y%m' format (e.g., 200105)
     monthsToBeChecked: int
         how many consecutive months should be considered
+    phaseLength: int or None
+        minimal lenght of the phase (in months), length not checked if None (default)
     indName: str
         name of newly created indicator (default 'ind'); note: some functions
         (e.g., matchTurningPoints()) require that the names of indicators match
@@ -1825,6 +1879,7 @@ def realTimeTPDetectionFromArchive(df, monthsToBeChecked = 3, indName = 'ind'):
     foundAt = pd.DataFrame(data = 0, index = df.index, columns = [indName])
     
     for i, item in enumerate(df.columns):
+        #i, item = list(enumerate(df.columns))[0]
     
         col = pd.DataFrame(dfIndex[item], columns = [item])
         
@@ -1864,6 +1919,15 @@ def realTimeTPDetectionFromArchive(df, monthsToBeChecked = 3, indName = 'ind'):
     realTime.iloc[0] = 0
     foundAt.iloc[0] = 0
     
+    # Check minimal length of the phase (optional)
+    # Alteration check included inside the checkPhaseLength function when keepFirst = True
+    
+    if phaseLength:
+        
+        realTime = checkPhaseLength(df = lastSeries, indicator = realTime, keepFirst = True, phaseLength = phaseLength, showPlots = False)
+        
+        foundAt = checkPhaseLength(df = lastSeries, indicator = foundAt, keepFirst = True, phaseLength = phaseLength, showPlots = False)
+        
     return(realTime, foundAt)
 
 
@@ -3002,7 +3066,7 @@ def plotArchive(df, ind = None, showPlots = True, savePlots = None, namePlot = '
     firstYear = int(plotMe.columns[0][-6:-2])
     lastYear = int(plotMe.columns[-1][-6:-2])
     normalizeYears = mpl.colors.Normalize(vmin = firstYear, vmax = lastYear)
-    
+    ticks = [x for x in range(firstYear, lastYear + 1) if (lastYear - x) % int((lastYear - firstYear)/7) == 0]
     
     # Plot
     
@@ -3012,7 +3076,8 @@ def plotArchive(df, ind = None, showPlots = True, savePlots = None, namePlot = '
     
     fig.patch.set_facecolor('white')
     
-    ax.ticklabel_format(useOffset = False, style = 'plain', axis = 'y')
+    ax.ticklabel_format(useOffset = False, style = 'sci', axis = 'y') # style = 'plain' to shut off the scientific format
+    ax.yaxis.offsetText.set_fontsize(10) # change the size of the scientific notation
     plt.xticks(data_values, data_labels, fontsize = 10, rotation = 60)
     plt.yticks(fontsize = 10)
     
@@ -3024,7 +3089,8 @@ def plotArchive(df, ind = None, showPlots = True, savePlots = None, namePlot = '
     
     scalarMappable = mpl.cm.ScalarMappable(norm = normalizeYears, cmap = cmap)
     scalarMappable.set_array(numCols)
-    plt.colorbar(scalarMappable, orientation = 'vertical')
+    cbar = plt.colorbar(scalarMappable, orientation = 'vertical', format = '%.10g', ticks = ticks)
+    cbar.ax.tick_params(labelsize = 10)
     
     
     # Vertical lines for index
@@ -3128,3 +3194,59 @@ def plotArchive(df, ind = None, showPlots = True, savePlots = None, namePlot = '
 #    except:
 #        
 #        print('Error: Could not open .html or create thumbnail.')
+
+
+# OTHER FUNCTIONS
+
+def downloadShapefile(country = 'CZE', outputDir = ''):
+    
+    """
+    Download Shapefile from GADM website (https://gadm.org/) and unzip it into
+    specified directory.
+    
+    Parameters
+    -----
+    country: str
+        country identifier
+    outputDir: str
+        directory where map files should be saved (new directory will be
+        created inside outputDir)
+    
+    """
+    
+    zipFile = country + '_adm_shp.zip'
+    unzipFolder = country + '_adm_shp'
+    
+    countryOutputDir = os.path.join(outputDir, unzipFolder)
+    
+    try:
+        os.makedirs(countryOutputDir)
+        
+        url = 'https://biogeo.ucdavis.edu/data/gadm2.8/shp/' + zipFile
+    
+        print('\nRequesting URL ' + url)
+        response = rq.get(url = url)
+        
+        if (response.status_code == 200):
+            
+            # Save as zip file
+            
+            with open(os.path.join(outputDir, zipFile), 'wb') as file:
+                
+                file.write(response.content)
+            
+            # Open zip file and unzip it
+            
+            zip_ref = zipfile.ZipFile(os.path.join(outputDir, zipFile), 'r')
+            zip_ref.extractall(countryOutputDir)
+            zip_ref.close()
+            
+            print('File downloaded and unzipped.')
+            
+        else:
+            
+            print('Error: %s' % response.status_code)
+    
+    except FileExistsError:
+        
+        print('\nThe %s maps already downloaded (\'%s\' folder exists in selected directory).' % (country, unzipFolder))
