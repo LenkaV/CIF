@@ -463,7 +463,7 @@ def createMonthlySeries(df, divide = True):
     df: pandas.DataFrame
         pandas DataFrame (quaterly series with index in format YYYY-MM-DD)
     divide: bool
-        should the series be devided by 3 during interpolation? This should be
+        should the series be divided by 3 during interpolation? This should be
         set to true for interval time series, e.g., GDP.
         
     Returns
@@ -869,7 +869,7 @@ def pipelineOneColumnTransformations(col, showPlots = True, savePlots = None, sa
     saveLogs: _io.TextIOWrapper or None
         file where to save stdouts (already opended with open())
     createInverse: bool
-        create inverse time series?
+        create inverted time series?
         
     Returns
     -----
@@ -962,7 +962,7 @@ def pipelineTransformations(df, showPlots = True, savePlots = None, saveLogs = N
     saveLogs: _io.TextIOWrapper or None
         file where to save stdouts (already opended with open())
     createInverse: bool
-        create inverse time series?
+        create inverted time series?
     
     Returns
     -----
@@ -1521,7 +1521,9 @@ def checkPhaseLength(df, indicator, keepFirst = False, phaseLength = 5, meanVal 
                     
                 if keepFirst: # the alterations need to be checked after each deletion
                     
+                    print('Checking alterations inside the phase length check (because keepFirst parameter is set to True)')
                     dataInd = checkAlterations(df = df, indicator = dataInd, keepFirst = True, showPlots = False)
+                    print('\nGetting back to the phase length check:')
                     
             else: 
                 
@@ -1900,13 +1902,19 @@ def realTimeTPDetectionFromArchive(df, monthsToBeChecked = 3, phaseLength = None
         if (monthsSelected.shape[0] == monthsToBeChecked): # this ignores non-complete data
             
             if ((monthsSelected > 1)[item].sum() == monthsToBeChecked): # growth in last n months
-            
-                realTime.loc[lastMonth, indName] = -1
+                
+                if (realTime.loc[lastMonth, indName] == 0): # this could already be marked as different extreme
+                
+                    realTime.loc[lastMonth, indName] = -1
+                
                 foundAt.loc[lastEdition, indName] = -1
                 
             elif ((monthsSelected < 1)[item].sum() == monthsToBeChecked): # decline in last n months
                 
-                realTime.loc[lastMonth, indName] = 1
+                if (realTime.loc[lastMonth, indName] == 0): # this could already be marked as different extreme
+                
+                    realTime.loc[lastMonth, indName] = 1
+                    
                 foundAt.loc[lastEdition, indName] = 1
     
     lastSeries = pd.DataFrame(df.iloc[ : , -1])
@@ -1925,9 +1933,8 @@ def realTimeTPDetectionFromArchive(df, monthsToBeChecked = 3, phaseLength = None
     if phaseLength:
         
         realTime = checkPhaseLength(df = lastSeries, indicator = realTime, keepFirst = True, phaseLength = phaseLength, showPlots = False)
-        
         foundAt = checkPhaseLength(df = lastSeries, indicator = foundAt, keepFirst = True, phaseLength = phaseLength, showPlots = False)
-        
+                
     return(realTime, foundAt)
 
 
@@ -1936,7 +1943,7 @@ def realTimeTPDetectionFromArchive(df, monthsToBeChecked = 3, phaseLength = None
 def matchTurningPoints(ind1, ind2, lagFrom = -9, lagTo = 24, printDetails = True, saveLogs = None):
     
     """
-    Compare turning points of reference and idividual time series. 
+    Compare turning points of reference and individual time series. 
     
     Parameters
     -----
@@ -2273,7 +2280,7 @@ def matchTurningPoints(ind1, ind2, lagFrom = -9, lagTo = 24, printDetails = True
 def pipelineTPMatching(df1, df2, ind1, ind2, printDetails = True, showPlots = True, savePlots = None, nameSuffix = '_06_matching', saveLogs = None, bw = False, lagFrom = -9, lagTo = 24):
     
     """
-    Pipeline to compare turning points of reference and idividual time series.
+    Pipeline to compare turning points of reference and individual time series.
     
     Parameters
     -----
@@ -2613,7 +2620,7 @@ def pipelineEvaluation(df1, df2, missing, missingEarly, extra, time, checkCorr =
 def pipelineCreateCLI(df):
     
     """
-    Pipeline to compute composite indator from selected individual time series.
+    Pipeline to compute composite indicator from selected individual time series.
     
     Parameters
     -----
@@ -2717,7 +2724,7 @@ def plotHP(data, phase = 1):
 def compareTwoSeries(df1, df2):
     
     """
-    Plot two series in one plot, first on left axis, second on rigth axis.
+    Plot two series in one plot, first on left axis, second on right axis.
     
     Parameters
     -----
