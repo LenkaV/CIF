@@ -20,3 +20,8 @@ It nowadays contains more than 30 functions designed to construct composite lead
 CIF is available via pip and tested on Python 3.5.
 
 Run the following command from a terminal window: `pip install cif`
+
+
+## Examples
+
+See the Jupyter notebook with the basic CIF pipeline [here](https://github.com/LenkaV/CIF/blob/develop/examples/CI_minimalPipeline.ipynb).
