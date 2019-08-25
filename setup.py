@@ -5,13 +5,13 @@ with open("README.md", "r") as fh:
 
 setup(
     name='cif',
-    version='0.0.3',
+    version='0.0.4',
     description='Composite Indicators Framework for Business Cycle Analysis',
 	long_description=long_description,
 	long_description_content_type="text/markdown",
     license='gpl-3.0',
 	packages=find_packages(where=".\cif"),
-	install_requires=['os', 'requests', 'pandas', 'numpy', 're', 'matplotlib', 'statsmodels', 'dateutil', 'warnings', 'zipfile'],
+	install_requires=['requests', 'pandas', 'matplotlib', 'statsmodels'],
 	python_requires='>=3, <4',
     author='Lenka Vraná',
     author_email='lenka.vrana@gmail.com',
