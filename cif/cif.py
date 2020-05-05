@@ -590,7 +590,7 @@ def getSAForecasts(series, forecastSteps = 6, showPlots = True, savePlots = None
         
         series_SA_forecast = series_SA_ARIMA.forecast(steps = forecastSteps)[0] # use ARIMA with X13 specifications to create forecasts (forecasts with TRAMO-SEATS directly in X13 doesn't work)
         
-        if series_SA_forecast.isna().any(): # null forecasts
+        if np.isnan(series_SA_forecast).any(): # null forecasts
             
             print('\nWARNING: Returning seasonally adjusted time series without forecasts.')
             
