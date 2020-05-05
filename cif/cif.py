@@ -245,7 +245,7 @@ def createDataFrameFromOECD(countries = ['CZE', 'AUT', 'DEU', 'POL', 'SVK'], dsn
         if (len(dataPart) > 0):
             
             dataPart.columns = pd.MultiIndex(levels = [[country], dataPart.columns.levels[0], dataPart.columns.levels[1]],
-                labels = [np.repeat(0, dataPart.shape[1]), dataPart.columns.labels[0], dataPart.columns.labels[1]], 
+                codes = [np.repeat(0, dataPart.shape[1]), dataPart.columns.codes[0], dataPart.columns.codes[1]], 
                 names = ['country', dataPart.columns.names[0], dataPart.columns.names[1]])
             
             dataAll = pd.concat([dataAll, dataPart], axis = 1)
@@ -714,13 +714,16 @@ def applyHPTwice(series, dateMax = None, lambda1 = 133107.94, lambda2 = 13.93, s
         dataframe with cyclical component
     """
     
+    colName = series.columns[0]
+    
     if not(dateMax):
         
         dateMax = series.index[-1]
 
     series_HP1 = smHP.hpfilter(series, lamb = lambda1)
+    series_HP_trend = pd.DataFrame(series_HP1[1]).rename(columns = {'trend': colName})
     series_HP2 = smHP.hpfilter(series_HP1[0], lamb = lambda2)
-    series_HP = series_HP2[1][series_HP2[1].index <= dateMax] # without forecasted values
+    series_HP = pd.DataFrame(series_HP2[1][series_HP2[1].index <= dateMax]).rename(columns = {'cycle_trend': colName}) # without forecasted values
     
     mpl.style.use('classic') # old matplotlib visualization style
     
@@ -740,7 +743,7 @@ def applyHPTwice(series, dateMax = None, lambda1 = 133107.94, lambda2 = 13.93, s
         plt.yticks(fontsize = 10)
         ax.plot(series_HP, color = 'gray')
         ax.margins(x = 0.0, y = 0.1)
-        fig.savefig(os.path.join(savePlots, str(series_HP.columns[0]) + '_02_HP.png'), dpi = 300)
+        fig.savefig(os.path.join(savePlots, colName + '_02_HP.png'), dpi = 300)
         plt.close(fig)
         
         if saveAllPlots:
@@ -752,7 +755,7 @@ def applyHPTwice(series, dateMax = None, lambda1 = 133107.94, lambda2 = 13.93, s
             plt.yticks(fontsize = 10)
             plotHP(series_HP1)
             ax.margins(x = 0.0, y = 0.1)
-            fig.savefig(os.path.join(savePlots, str(series_HP.columns[0]) + '_02a_HP.png'), dpi = 300)
+            fig.savefig(os.path.join(savePlots, colName + '_02a_HP.png'), dpi = 300)
             plt.close(fig)
             
             fig, ax = plt.subplots(nrows = 1, ncols = 1, figsize = (6, 2))
@@ -762,11 +765,11 @@ def applyHPTwice(series, dateMax = None, lambda1 = 133107.94, lambda2 = 13.93, s
             plt.yticks(fontsize = 10)
             plotHP(series_HP2, phase = 2)
             ax.margins(x = 0.0, y = 0.1)
-            fig.savefig(os.path.join(savePlots, str(series_HP.columns[0]) + '_02b_HP.png'), dpi = 300)
+            fig.savefig(os.path.join(savePlots, colName + '_02b_HP.png'), dpi = 300)
             plt.close(fig)
     
     if returnTrend:
-        return(series_HP1[1], series_HP)
+        return(series_HP_trend, series_HP)
     else:
         return(series_HP)
     
@@ -2673,7 +2676,7 @@ def plotHP(data, phase = 1):
     
     Parameters
     -----
-    data: pandas.DataFrame
+    data: tuple of Series
         output from statsmodels Hodrick-Prescott filter
     phase: int
         first or second application of the filter (default = 1)
@@ -2704,7 +2707,7 @@ def plotHP(data, phase = 1):
     
     plt.ioff() # Turn interactive plotting off
     
-    plt.figure(1)
+    plt.figure(1).patch.set_facecolor('white')
     plt.subplot(211)
     plt.title(plotTitle)
     plt.plot(data[1] + data[0], label = str2, color = 'gray')
