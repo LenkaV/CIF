@@ -576,7 +576,7 @@ def getSAForecasts(series, forecastSteps = 6, showPlots = True, savePlots = None
             
             warnings.simplefilter("ignore")
             
-            series_X13 = smX13.x13_arima_analysis(endog = series, maxorder = (maxOrder, maxSOrder), maxdiff = None, diff = (diff, diffS), outlier = True, forecast_years = 0)
+            series_X13 = smX13.x13_arima_analysis(endog = series, maxorder = (maxOrder, maxSOrder), maxdiff = None, diff = (diff, diffS), outlier = True, forecast_periods = 0)
         
         series_SA = pd.DataFrame({series.columns[0]: series_X13.seasadj})        
         
@@ -590,7 +590,7 @@ def getSAForecasts(series, forecastSteps = 6, showPlots = True, savePlots = None
         
         series_SA_forecast = series_SA_ARIMA.forecast(steps = forecastSteps)[0] # use ARIMA with X13 specifications to create forecasts (forecasts with TRAMO-SEATS directly in X13 doesn't work)
         
-        if series_SA_forecast.any(): # null forecasts
+        if series_SA_forecast.isna().any(): # null forecasts
             
             print('\nWARNING: Returning seasonally adjusted time series without forecasts.')
             
