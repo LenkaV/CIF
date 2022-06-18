@@ -25,3 +25,8 @@ Run the following command from a terminal window: `pip install cif`
 ## Examples
 
 See the Jupyter notebook with the basic CIF pipeline [here](https://github.com/LenkaV/CIF/blob/develop/examples/CI_minimalPipeline.ipynb).
+
+
+## Thesis
+
+For more information on composite indicators theory and on CIF, see the full version of my [doctoral thesis](https://github.com/LenkaV/CIF/blob/develop/thesis/vrana_CIF_2019.pdf).
